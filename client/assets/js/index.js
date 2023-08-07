@@ -185,7 +185,9 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
             responseElement.innerHTML = `<img src="${responseText}" class="ai-image" alt="generated image"/>`
         } else {
             // Set the response text
-            responseElement.innerHTML = converter.makeHtml(responseText.trim());
+            typewriterEffect(responseText, responseElement, 10);
+            // console.log(responseText);
+            // responseElement.innerHTML = converter.makeHtml(responseText.trim());
         }
 
         promptToRetry = null;
@@ -223,3 +225,14 @@ regenerateResponseButton.addEventListener("click", () => {
 document.addEventListener("DOMContentLoaded", function(){
     promptInput.focus();
 });
+
+async function typewriterEffect(text, element, delay) {
+    console.log(text);
+  const characters = text.split('');
+  tmp = ""
+  for (let i = 0; i < characters.length; i++) {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    tmp += characters[i];
+    element.innerHTML = converter.makeHtml(tmp);
+  }
+}
