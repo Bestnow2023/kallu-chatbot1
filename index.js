@@ -5,6 +5,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const multer  = require('multer');
+const fetch = require("node-fetch");
 const { v4: uuidv4 } = require('uuid');
 require("dotenv").config();
 const configuration = new Configuration({
