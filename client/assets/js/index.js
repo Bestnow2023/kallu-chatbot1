@@ -1,7 +1,11 @@
+// const { json } = require("express");
+
 const API_URL = '/';
 const converter = new showdown.Converter();
 let promptToRetry = null;
 let uniqueIdToRetry = null;
+let token;
+let hotel;
 
 const submitButton = document.getElementById('submit-button');
 const regenerateResponseButton = document.getElementById('regenerate-response-button');
@@ -9,6 +13,124 @@ const promptInput = document.getElementById('prompt-input');
 const modelSelect = document.getElementById('model-select');
 const responseList = document.getElementById('response-list');
 const fileInput = document.getElementById("whisper-file");
+
+async function getToken() {
+    try {
+        const response = await fetch("/token");
+        const jsonData = await response.json(); // Convert the response body to JSON format
+        token = jsonData.token;
+        console.log(token)
+        const res = await fetch("/hotels", {
+            headers : {'auth-token' : token, 'supplierId' : 9887}
+        });
+        if(!res.ok) {
+            return;
+        }
+        const data = await res.json();
+        hotel = data.hotel;
+        console.log(hotel);
+        // Do something with jsonData, e.g., update UI or perform further operations.
+    } catch (e) {
+        console.error(e);
+        // Handle errors if needed
+    }
+}
+
+const getInfo = async (_promptToRetry, _uniqueIdToRetry) => {
+    let prompt = ""
+    if(promptInput.textContent.toLowerCase().includes("berlin") && promptInput.textContent.toLowerCase().includes("hotel")) {
+        
+        prompt = "Here are the info of some hotels in Berlin.";
+        hotel.slice(0,5).map(obj => {
+            prompt += obj.hotelname + "\n";
+            prompt += "Address: " + obj.address.address + ", ";
+            prompt += "country: " + obj.address.country + ", "; 
+            prompt += "email: " + obj.address.email + ", ";
+            prompt += "phone: " + obj.address.phone + ",";
+            prompt += "currency: " + obj.currency + "\n\n";
+        })
+        prompt += "wirte down the description of each hotels."
+        console.log(prompt);
+    }
+    else prompt = promptInput.textContent;
+    // If a response is already being generated or the prompt is empty, return
+    if (isGeneratingResponse || !prompt) {
+        return;
+    }
+
+    // Add loading class to the submit button
+    submitButton.classList.add("loading");
+
+    // Clear the prompt input
+
+    if (!_uniqueIdToRetry) {
+        // Add the prompt to the response list
+        addResponse(true, `<div>${promptInput.textContent}</div>`);
+    }
+
+    promptInput.textContent = '';
+    // Get a unique ID for the response element
+    const uniqueId = _uniqueIdToRetry ?? addResponse(false);
+
+    // Get the response element
+    const responseElement = document.getElementById(uniqueId);
+
+    // Show the loader
+    loader(responseElement);
+
+    // Set isGeneratingResponse to true
+    isGeneratingResponse = true;
+
+    try {
+        const model = modelSelect.value;
+        // Send a POST request to the API with the prompt in the request body
+        const response = await fetch(API_URL + 'get-prompt-result', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt,
+                model
+            })
+        });
+        if (!response.ok) {
+            setRetryResponse(prompt, uniqueId);
+            setErrorForResponse(responseElement, `HTTP Error: ${await response.text()}`);
+            return;
+        }
+        const responseText = await response.text();
+        if (model === 'image') {
+            // Show image for `Create image` model
+            responseElement.innerHTML = `<img src="${responseText}" class="ai-image" alt="generated image"/>`
+        } else {
+            // Set the response text
+            typewriterEffect(responseText, responseElement, 10);
+            // console.log(responseText);
+            // responseElement.innerHTML = converter.makeHtml(responseText.trim());
+        }
+
+        promptToRetry = null;
+        uniqueIdToRetry = null;
+        regenerateResponseButton.style.display = 'none';
+        setTimeout(() => {
+            // Scroll to the bottom of the response list
+            responseList.scrollTop = responseList.scrollHeight;
+            hljs.highlightAll();
+        }, 10);
+    } catch (err) {
+        setRetryResponse(prompt, uniqueId);
+        // If there's an error, show it in the response element
+        setErrorForResponse(responseElement, `Error: ${err.message}`);
+    } finally {
+        // Set isGeneratingResponse to false
+        isGeneratingResponse = false;
+
+        // Remove the loading class from the submit button
+        submitButton.classList.remove("loading");
+
+        // Clear the loader interval
+        clearInterval(loadInterval);
+    }
+}
 
 modelSelect.addEventListener("change", function() {
     if (modelSelect.value === "whisper") {
@@ -32,7 +154,7 @@ promptInput.addEventListener('keydown', function(event) {
         if (event.ctrlKey || event.shiftKey) {
             document.execCommand('insertHTML', false, '<br/><br/>');
         } else {
-            getGPTResult();
+            getInfo();
         }
     }
 });
@@ -86,7 +208,7 @@ function setRetryResponse(prompt, uniqueId) {
 
 async function regenerateGPTResult() {
     try {
-        await getGPTResult(promptToRetry, uniqueIdToRetry)
+        await getInfo(promptToRetry, uniqueIdToRetry)
         regenerateResponseButton.classList.add("loading");
     } finally {
         regenerateResponseButton.classList.remove("loading");
@@ -134,7 +256,10 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     }
     // Get the prompt input
     const prompt = _promptToRetry ?? promptInput.textContent;
-
+    if(prompt.includes("Berlin")) {
+        getHotels();
+        return;
+    }
     // If a response is already being generated or the prompt is empty, return
     if (isGeneratingResponse || !prompt) {
         return;
@@ -216,7 +341,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
 
 
 submitButton.addEventListener("click", () => {
-    getGPTResult();
+    getInfo();
 });
 regenerateResponseButton.addEventListener("click", () => {
     regenerateGPTResult();
@@ -236,3 +361,5 @@ async function typewriterEffect(text, element, delay) {
     element.innerHTML = converter.makeHtml(tmp);
   }
 }
+
+getToken()

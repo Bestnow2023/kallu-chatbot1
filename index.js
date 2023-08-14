@@ -40,6 +40,50 @@ const upload = multer({
     }
 });
 
+app.get('/token', async (req, res) => {
+    try {
+        const response = await fetch("https://www.kallu.travel/resources/authentication/authenticate", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: "apiuser",
+                password: "2ZnFQwUurdfakin",
+                micrositeId: "hostels"
+            })
+        });
+        if (!response.ok) {
+            throw new Error('Request failed');
+        }
+
+        const jsonData = await response.json(); // Convert the response body to JSON format
+
+        return res.send(jsonData);
+    } catch (error) {
+        console.error("Error:", error.message);
+        return res.status(500).send({ error: error.message });
+    }
+});
+app.get('/hotels', async (req, res) => {
+    try {
+        console.log("------------------------?",req.headers['auth-token'])
+        const response = await fetch("https://www.kallu.travel/resources/hotel/" + req.headers.supplierid, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json', 'auth-token':req.headers['auth-token'], 'supplierId' : req.header.supplierId },
+        });
+
+        if (!response.ok) {
+            throw new Error('Request failed');
+        }
+
+        const jsonData = await response.json(); // Convert the response body to JSON format
+
+        console.log("---> response hotel: ", jsonData);
+        return res.send(jsonData);
+    } catch (error) {
+        console.error("Error:", error.message);
+        return res.status(500).send({ error: "An error occurred" });
+    }
+});
 app.post('/transcribe', upload.single('audio'), async (req, res) => {
     try {
         const resp = await openai.createTranscription(
