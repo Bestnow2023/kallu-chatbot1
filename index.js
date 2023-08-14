@@ -5,8 +5,8 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const multer  = require('multer');
-const fetch = require("node-fetch");
 const { v4: uuidv4 } = require('uuid');
+const fetch = require("node-fetch");
 require("dotenv").config();
 const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
@@ -147,5 +147,5 @@ app.post('/get-prompt-result', async (req, res) => {
     }
 });
 
-const port = process.env.PORT || 3002;
+const port = process.env.PORT || 3001;
 app.listen(port, () => console.log(`Listening on port ${port}`));
